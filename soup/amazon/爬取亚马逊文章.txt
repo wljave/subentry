@@ -1,0 +1,78 @@
+﻿import csv
+import time
+import requests
+from bs4 import BeautifulSoup
+
+
+image_url_list = []
+
+
+# 头部信息
+def header(url):
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/71.0.3578.98 Safari/537.36'}
+    # 设置代理IP
+    proxy = '150.138.253.72:808'
+    proxies = {
+        'https': 'https://' + proxy,
+    }
+    res = requests.get(url=url, proxies=proxies, headers=headers)
+    return res
+
+
+url = 'http://m.cifnews.com/article/57739'
+# 用requests.get()函数抓取网址。
+res = header(url=url)
+# 请求之后暂停一秒等网页数据
+time.sleep(1)
+print(res.status_code)
+res.encoding = 'utf-8'
+# 用requests.get获取网页源代码。
+bs = BeautifulSoup(res.text, 'html.parser')
+# 用BeautifulSoup解析网页源代码。
+datas = bs.find_all(class_='cif-left')
+# print(datas)
+# 先将文章内容写进csv文件中
+with open('./amazon/content.csv', 'w', newline='', encoding='utf-8')as file:
+    write = csv.writer(file)
+    for item in datas:
+        # 标题
+        article_title = item.find(class_='article-title').text
+        print('标题：' + article_title)
+        # 作者
+        article_author = item.find(class_='introduce-name').text
+        print('作者：' + article_author)
+        # 文章简介
+        article_summary = item.find(class_='article-summary').text
+        print('文章简介：' + article_summary)
+        # 文章内容
+        article_content = item.find(class_='article-content').text.replace(' ', '')[:-146]
+        print('文章内容：' + article_content)
+        write.writerow(['标题：', article_title])
+        write.writerow(['作者：', article_author])
+        write.writerow(['文章简介：', article_summary])
+        write.writerow(['文章内容：', article_content])
+
+        # 文章中的图片链接
+        content_url = item.find_all(class_='article-content')
+        for p in content_url:
+            images = p.find_all('img')
+            for img in images:
+                image = img['data-src']
+                image_url_list.append(image)
+print(image_url_list)
+
+# 定义变量x并初始化用来计数图片的张数
+x = 0
+print('***************************')
+for x in range(len(image_url_list)):
+    # 获取获得的从imglist中遍历得到的imgurl
+    re = requests.get(image_url_list[x])
+    # print(re.status_code)
+    imgres = re.content
+    with open('./amazon/images/{}.jpg'.format(x), 'wb') as f:
+        f.write(imgres)
+        x += 1
+        print('正在下载，第', x+1, '张图片')
+print('图片下载完毕')
